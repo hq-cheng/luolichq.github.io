@@ -137,11 +137,11 @@ var _hmt = _hmt || [];
 <div class="row">
 	<div class="col-md-8">
 		<h3 class="title">
-			<a href="/2019/10/15/first-test-blog/" title="矩阵和二维数组有两种不同的存储顺序：列优先和行优先。本页说明了这些存储顺序以及如何指定应使用的存储顺序。">first-test-blog</a>
+			<a href="/2019/10/16/gmappingslam-basis-principle-impl-01/" title="主要是关于Dashgo d1两轮差速底盘的控制原理、轮式里程计数据获取、以及GMapping SLAM中里程计相关类的实现。">GMapping SLAM基础、原理与实现（一）：机器人底盘与轮式里程计</a>
 		</h3>
 		</div>
 	<div class="col-md-4">
-		<div class="date">post @ 2019-10-15  </div>
+		<div class="date">post @ 2019-10-16  </div>
 		</div>
 	</div>
 	
@@ -151,43 +151,22 @@ var _hmt = _hmt || [];
   <div class="row">
 	
 	
-		<h1 id="10-存储顺序storage-orders"><a class="markdownIt-Anchor" href="#10-存储顺序storage-orders"></a> 10 存储顺序（Storage orders）</h1>
-<p>矩阵和二维数组有两种不同的存储顺序：列优先和行优先。本页说明了这些存储顺序以及如何指定应使用的存储顺序。</p>
-<h2 id="101-列主存储和行主存储"><a class="markdownIt-Anchor" href="#101-列主存储和行主存储"></a> 10.1 列主存储和行主存储</h2>
-<p>矩阵的元素形成一个二维网格。但是，当矩阵存储<strong>在存储器中时，必须以某种方式线性排列元素</strong>。有两种主要方法可以做到这一点，按行和按列。</p>
+		<h1 id="前言"><a class="markdownIt-Anchor" href="#前言"></a> 前言</h1>
+<p>该系列文章是我在学习2D激光SLAM时的学习笔记，选择GMapping SLAM算法为背景，来学习2D激光SLAM的基础原理与工程实现。相关硬件与软件：</p>
+<ul>
+<li>采用EAI公司的<strong>Dashgo d1移动机器人底盘</strong>，是一个双轮差速驱动底盘，底层控制器为Ardiuno，驱动由厂商提供；</li>
+<li>采用镭神公司的<strong>LS01C型激光雷达</strong>，三角测距原理；</li>
+<li>采用<strong>树莓派 3B+</strong>（Ubuntu Mate 16.04系统）或<strong>Intel NUC主机</strong>（Ubuntu 16.04系统）作为应用控制器，配置Ros Kinetic 机器人系统作为通信框架；</li>
+<li>GMapping SLAM源码，参考：
+<blockquote>
+<p>C++源代码：<a href="https://github.com/ros-perception/openslam_gmapping.git" target="_blank" rel="noopener">https://github.com/ros-perception/openslam_gmapping.git</a><br>
+ROS Package：<a href="https://github.com/ros-perception/slam_gmapping.git" target="_blank" rel="noopener">https://github.com/ros-perception/slam_gmapping.git</a></p>
+</blockquote>
+</li>
+</ul>
 	
 	</div>
-  <a type="button" href="/2019/10/15/first-test-blog/#more" class="btn btn-default more">阅读此文</a>
-</div>
-
-		
-			
-	
-	<!-- display as entry -->
-<div class="row">
-	<div class="col-md-8">
-		<h3 class="title">
-			<a href="/2019/10/15/hello-world/" >Hello World</a>
-		</h3>
-		</div>
-	<div class="col-md-4">
-		<div class="date">post @ 2019-10-15  </div>
-		</div>
-	</div>
-	
-
-
-			<div class="entry">
-  <div class="row">
-	
-	
-		<p>Welcome to <a href="https://hexo.io/" target="_blank" rel="noopener">Hexo</a>! This is your very first post. Check <a href="https://hexo.io/docs/" target="_blank" rel="noopener">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a href="https://hexo.io/docs/troubleshooting.html" target="_blank" rel="noopener">troubleshooting</a> or you can ask me on <a href="https://github.com/hexojs/hexo/issues" target="_blank" rel="noopener">GitHub</a>.</p>
-<h2 id="quick-start"><a class="markdownIt-Anchor" href="#quick-start"></a> Quick Start</h2>
-<h3 id="create-a-new-post"><a class="markdownIt-Anchor" href="#create-a-new-post"></a> Create a new post</h3>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">"My New Post"</span></span><br></pre></td></tr></table></figure>
-	
-	</div>
-  <a type="button" href="/2019/10/15/hello-world/#more" class="btn btn-default more">阅读此文</a>
+  <a type="button" href="/2019/10/16/gmappingslam-basis-principle-impl-01/#more" class="btn btn-default more">Read More</a>
 </div>
 
 		
@@ -216,7 +195,7 @@ var _hmt = _hmt || [];
 			
   <div id="site_search">
    <div class="form-group">
-    <input type="text" id="local-search-input" name="q" results="0" placeholder="搜索" class="st-search-input st-default-search-input form-control"/>
+    <input type="text" id="local-search-input" name="q" results="0" placeholder="Search" class="st-search-input st-default-search-input form-control"/>
    </div>  
   <div id="local-search-result"></div>
   </div>
@@ -225,12 +204,10 @@ var _hmt = _hmt || [];
 		
 			
 	<div class="widget">
-		<h4>分类</h4>
+		<h4>Categories</h4>
 		<ul class="tag_box inline list-unstyled">
 		
-			<li><a href="/categories/SLAM/">SLAM<span>1</span></a></li>
-		
-			<li><a href="/categories/Sensor/">Sensor<span>1</span></a></li>
+			<li><a href="/categories/Lidar-SLAM/">Lidar SLAM<span>1</span></a></li>
 		
 		</ul>
 	</div>
@@ -238,18 +215,14 @@ var _hmt = _hmt || [];
 		
 			
 	<div class="widget">
-		<h4>标签云</h4>
+		<h4>Tag Cloud</h4>
 		<ul class="tag_box inline list-unstyled">		
 		
-			<li><a href="/tags/Sensor/">Sensor<span>2</span></a></li>
+			<li><a href="/tags/Odometry/">Odometry<span>1</span></a></li>
 		
-			<li><a href="/tags/SLAM/">SLAM<span>2</span></a></li>
+			<li><a href="/tags/Sensor/">Sensor<span>1</span></a></li>
 		
-			<li><a href="/tags/机器人/">机器人<span>2</span></a></li>
-		
-			<li><a href="/tags/Robotics/">Robotics<span>2</span></a></li>
-		
-			<li><a href="/tags/math/">math<span>2</span></a></li>
+			<li><a href="/tags/Hardware/">Hardware<span>1</span></a></li>
 		
 		 
 		</ul>
@@ -259,15 +232,11 @@ var _hmt = _hmt || [];
 		
 			
 <div class="widget">
-  <h4>最新文章</h4>
+  <h4>Recent Posts</h4>
   <ul class="entry list-unstyled">
     
       <li>
-        <a href="/2019/10/15/first-test-blog/"  title="矩阵和二维数组有两种不同的存储顺序：列优先和行优先。本页说明了这些存储顺序以及如何指定应使用的存储顺序。" ><i class="fa fa-file-o"></i>first-test-blog</a>
-      </li>
-    
-      <li>
-        <a href="/2019/10/15/hello-world/" ><i class="fa fa-file-o"></i>Hello World</a>
+        <a href="/2019/10/16/gmappingslam-basis-principle-impl-01/"  title="主要是关于Dashgo d1两轮差速底盘的控制原理、轮式里程计数据获取、以及GMapping SLAM中里程计相关类的实现。" ><i class="fa fa-file-o"></i>GMapping SLAM基础、原理与实现（一）：机器...</a>
       </li>
     
   </ul>
@@ -276,7 +245,7 @@ var _hmt = _hmt || [];
 		
 			
 <div class="widget">
-	<h4>链接</h4>
+	<h4>Links</h4>
 	<ul class="blogroll list-unstyled">
 	
 		<li><i class="fa fa-github"></i><a href="https://github.com/luoliCHq" title="My Github account." target="_blank"]);">My Github</a></li>
