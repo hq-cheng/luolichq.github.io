@@ -137,6 +137,69 @@ var _hmt = _hmt || [];
 <div class="row">
 	<div class="col-md-8">
 		<h3 class="title">
+			<a href="/2019/10/17/gmappingslam-basis-principle-impl-03/" title="主要是关于一般移动机器人的SLAM数学模型描述，包括（里程计）运动模型和（激光雷达）观测模型。">GMapping SLAM基础、原理与实现（三）：移动机器人SLAM数学模型</a>
+		</h3>
+		</div>
+	<div class="col-md-4">
+		<div class="date">post @ 2019-10-17  </div>
+		</div>
+	</div>
+	
+
+
+			<div class="entry">
+  <div class="row">
+	
+	
+		<h1 id="31-里程计运动模型"><a class="markdownIt-Anchor" href="#31-里程计运动模型"></a> 3.1 里程计运动模型</h1>
+<p>由于机器人的位姿也可以在底盘坐标系下表示，所以有两种求解运动模型的思路。里程计（编码器）一般测量到的信息是底盘在每两个时间间隔内位置和方位的变化量：</p>
+<ul>
+<li>当我们获取的里程计信息是相对于世界坐标系的话，则运动模型输入为<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mo>[</mo><mi>d</mi><mi>x</mi><mo separator="true">,</mo><mi>d</mi><mi>y</mi><mo separator="true">,</mo><mi>d</mi><mi>θ</mi><msubsup><mo>]</mo><mi>w</mi><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">[dx, dy, d\theta]_w^T</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.8413309999999999em;"></span><span class="strut bottom" style="height:1.0913309999999998em;vertical-align:-0.25em;"></span><span class="base textstyle uncramped"><span class="mopen">[</span><span class="mord mathit">d</span><span class="mord mathit">x</span><span class="mpunct">,</span><span class="mord mathit">d</span><span class="mord mathit" style="margin-right:0.03588em;">y</span><span class="mpunct">,</span><span class="mord mathit">d</span><span class="mord mathit" style="margin-right:0.02778em;">θ</span><span class="mclose"><span class="mclose">]</span><span class="vlist"><span style="top:0.247em;margin-left:0em;margin-right:0.05em;"><span class="fontsize-ensurer reset-size5 size5"><span style="font-size:0em;">​</span></span><span class="reset-textstyle scriptstyle cramped"><span class="mord mathit" style="margin-right:0.02691em;">w</span></span></span><span style="top:-0.363em;margin-right:0.05em;"><span class="fontsize-ensurer reset-size5 size5"><span style="font-size:0em;">​</span></span><span class="reset-textstyle scriptstyle uncramped"><span class="mord mathit" style="margin-right:0.13889em;">T</span></span></span><span class="baseline-fix"><span class="fontsize-ensurer reset-size5 size5"><span style="font-size:0em;">​</span></span>​</span></span></span></span></span></span>；</li>
+<li>当我们获取的里程计信息是相对于底盘基准坐标系的话，则运动模型输入为<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mo>[</mo><mi>d</mi><mi>x</mi><mo separator="true">,</mo><mi>d</mi><mi>y</mi><mo separator="true">,</mo><mi>d</mi><mi>θ</mi><msubsup><mo>]</mo><mrow><mi>r</mi><mi>o</mi><mi>b</mi><mi>o</mi><mi>t</mi></mrow><mi>T</mi></msubsup></mrow><annotation encoding="application/x-tex">[dx, dy, d\theta]_{robot}^T</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.8413309999999999em;"></span><span class="strut bottom" style="height:1.1244389999999997em;vertical-align:-0.2831079999999999em;"></span><span class="base textstyle uncramped"><span class="mopen">[</span><span class="mord mathit">d</span><span class="mord mathit">x</span><span class="mpunct">,</span><span class="mord mathit">d</span><span class="mord mathit" style="margin-right:0.03588em;">y</span><span class="mpunct">,</span><span class="mord mathit">d</span><span class="mord mathit" style="margin-right:0.02778em;">θ</span><span class="mclose"><span class="mclose">]</span><span class="vlist"><span style="top:0.2831079999999999em;margin-left:0em;margin-right:0.05em;"><span class="fontsize-ensurer reset-size5 size5"><span style="font-size:0em;">​</span></span><span class="reset-textstyle scriptstyle cramped"><span class="mord scriptstyle cramped"><span class="mord mathit" style="margin-right:0.02778em;">r</span><span class="mord mathit">o</span><span class="mord mathit">b</span><span class="mord mathit">o</span><span class="mord mathit">t</span></span></span></span><span style="top:-0.363em;margin-right:0.05em;"><span class="fontsize-ensurer reset-size5 size5"><span style="font-size:0em;">​</span></span><span class="reset-textstyle scriptstyle uncramped"><span class="mord mathit" style="margin-right:0.13889em;">T</span></span></span><span class="baseline-fix"><span class="fontsize-ensurer reset-size5 size5"><span style="font-size:0em;">​</span></span>​</span></span></span></span></span></span></li>
+</ul>
+<p><strong>后者更为常用</strong>，因为我们在SLAM算法中一般是通过监听底盘基准坐标系与里程计坐标系之间的tf变换关系来获取里程计信息，所以得到的都是指定时刻里程计坐标下的机器人位姿（里程计和底盘之间就一个简单的静态坐标变换）。</p>
+	
+	</div>
+  <a type="button" href="/2019/10/17/gmappingslam-basis-principle-impl-03/#more" class="btn btn-default more">Read More</a>
+</div>
+
+		
+			
+	
+	<!-- display as entry -->
+<div class="row">
+	<div class="col-md-8">
+		<h3 class="title">
+			<a href="/2019/10/17/gmappingslam-basis-principle-impl-02/" title="主要是关于ls01c型雷达相关基础原理、距离和转角数据获取、以及GMapping SLAM中激光雷达相关类的实现。">GMapping SLAM基础、原理与实现（二）：激光雷达与数据获取</a>
+		</h3>
+		</div>
+	<div class="col-md-4">
+		<div class="date">post @ 2019-10-17  </div>
+		</div>
+	</div>
+	
+
+
+			<div class="entry">
+  <div class="row">
+	
+	
+		<h1 id="21-什么是激光雷达"><a class="markdownIt-Anchor" href="#21-什么是激光雷达"></a> 2.1 什么是激光雷达</h1>
+<p>激光雷达（LiDAR, Light Detection And Ranging）是<strong>激光探测与测距</strong>的缩写。</p>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/01.png" width="30%">
+<p>激光雷达使用了脉冲激光照射目标，可以<strong>根据照射所反射回来的脉冲激光测量雷达到达目标的距离</strong>。在反射的脉冲激光中也会带有相关信息，激光雷达可以<strong>根据返回时间和波长的差异来对目标进行3D建模</strong>。另外，激光雷达一般用于SLAM技术中，用于制作高精度地图。激光雷达所提供的点云图是<strong>直接含有深度信息</strong>的，所以使用激光雷达进行场景建图会更加地容易实现。</p>
+	
+	</div>
+  <a type="button" href="/2019/10/17/gmappingslam-basis-principle-impl-02/#more" class="btn btn-default more">Read More</a>
+</div>
+
+		
+			
+	
+	<!-- display as entry -->
+<div class="row">
+	<div class="col-md-8">
+		<h3 class="title">
 			<a href="/2019/10/16/gmappingslam-basis-principle-impl-01/" title="主要是关于Dashgo d1两轮差速底盘的控制原理、轮式里程计数据获取、以及GMapping SLAM中里程计相关类的实现。">GMapping SLAM基础、原理与实现（一）：机器人底盘与轮式里程计</a>
 		</h3>
 		</div>
@@ -207,7 +270,7 @@ ROS Package：<a href="https://github.com/ros-perception/slam_gmapping.git" targ
 		<h4>Categories</h4>
 		<ul class="tag_box inline list-unstyled">
 		
-			<li><a href="/categories/Lidar-SLAM/">Lidar SLAM<span>1</span></a></li>
+			<li><a href="/categories/Lidar-SLAM/">Lidar SLAM<span>3</span></a></li>
 		
 		</ul>
 	</div>
@@ -218,11 +281,13 @@ ROS Package：<a href="https://github.com/ros-perception/slam_gmapping.git" targ
 		<h4>Tag Cloud</h4>
 		<ul class="tag_box inline list-unstyled">		
 		
-			<li><a href="/tags/Odometry/">Odometry<span>1</span></a></li>
+			<li><a href="/tags/Lidar/">Lidar<span>2</span></a></li>
 		
-			<li><a href="/tags/Sensor/">Sensor<span>1</span></a></li>
+			<li><a href="/tags/Odometry/">Odometry<span>2</span></a></li>
 		
-			<li><a href="/tags/Hardware/">Hardware<span>1</span></a></li>
+			<li><a href="/tags/Hardware/">Hardware<span>2</span></a></li>
+		
+			<li><a href="/tags/Sensor/">Sensor<span>3</span></a></li>
 		
 		 
 		</ul>
@@ -234,6 +299,14 @@ ROS Package：<a href="https://github.com/ros-perception/slam_gmapping.git" targ
 <div class="widget">
   <h4>Recent Posts</h4>
   <ul class="entry list-unstyled">
+    
+      <li>
+        <a href="/2019/10/17/gmappingslam-basis-principle-impl-03/"  title="主要是关于一般移动机器人的SLAM数学模型描述，包括（里程计）运动模型和（激光雷达）观测模型。" ><i class="fa fa-file-o"></i>GMapping SLAM基础、原理与实现（三）：移动...</a>
+      </li>
+    
+      <li>
+        <a href="/2019/10/17/gmappingslam-basis-principle-impl-02/"  title="主要是关于ls01c型雷达相关基础原理、距离和转角数据获取、以及GMapping SLAM中激光雷达相关类的实现。" ><i class="fa fa-file-o"></i>GMapping SLAM基础、原理与实现（二）：激光...</a>
+      </li>
     
       <li>
         <a href="/2019/10/16/gmappingslam-basis-principle-impl-01/"  title="主要是关于Dashgo d1两轮差速底盘的控制原理、轮式里程计数据获取、以及GMapping SLAM中里程计相关类的实现。" ><i class="fa fa-file-o"></i>GMapping SLAM基础、原理与实现（一）：机器...</a>
