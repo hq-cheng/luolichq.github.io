@@ -1,0 +1,424 @@
+<!DOCTYPE HTML>
+<html>
+<head><meta name="generator" content="Hexo 3.9.0">
+  <meta charset="utf-8">
+  <meta http-equiv="pragma" content="no-cache">
+  <meta http-equiv="cache-control" content="no-cache">
+  <meta http-equiv="expires" content="0">
+  
+  <title>GMapping SLAM基础、原理与实现（二）：激光雷达与数据获取 | luoliCHq Blog</title>
+  <meta name="author" content="Cheng Haoqi">
+  
+  <meta name="description" content="主要是关于ls01c型雷达相关基础原理、距离和转角数据获取、以及GMapping SLAM中激光雷达相关类的实现。">
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+  <meta property="og:title" content="GMapping SLAM基础、原理与实现（二）：激光雷达与数据获取">
+  <meta property="og:site_name" content="luoliCHq Blog">
+
+  
+    <meta property="og:image" content>
+  
+
+  
+  
+    <link href="/favicon.png" rel="icon">
+  
+  
+  <link rel="stylesheet" href="/css/bootstrap.min.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/css/font-awesome.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/css/style.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/css/responsive.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/css/highlight.css" media="screen" type="text/css">
+  <link rel="stylesheet" href="/css/google-fonts.css" media="screen" type="text/css">
+  <!--[if lt IE 9]><script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script><![endif]-->
+
+  <script src="/js/jquery-2.0.3.min.js"></script>
+
+  <!-- analytics -->
+  
+
+
+<meta name="google-site-verification" content="5FyCDLavAYbKwF0og40RzmrmOjWoXfxLIrvLgG_Mlx0">
+
+
+
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?6736a9f3d7549f9257145942e666d408";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+  
+  <link href="https://cdn.bootcss.com/KaTeX/0.7.1/katex.min.css" rel="stylesheet">
+
+</head>
+</html>
+ <body>  
+  <nav id="main-nav" class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+      <button type="button" class="navbar-header navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+		<span class="sr-only">Toggle navigation</span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+	  <a class="navbar-brand" href="/">luoliCHq Blog</a>
+      <div class="collapse navbar-collapse nav-menu">
+		<ul class="nav navbar-nav">
+		  
+		  <li>
+			<a href="/archives" title="All the articles.">
+			  <i class=""></i>Archives
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/categories" title="All the categories.">
+			  <i class=""></i>Categories
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/tags" title="All the tags.">
+			  <i class=""></i>Tags
+			</a>
+		  </li>
+		  
+		  <li>
+			<a href="/about" title="About me.">
+			  <i class=""></i>About
+			</a>
+		  </li>
+		  
+		</ul>
+      </div>
+    </div> <!-- container -->
+</nav>
+<div class="clearfix"></div>
+
+  <div class="container">
+  	<div class="content">
+    	 
+
+
+	
+		<div class="page-header">
+			<h1> GMapping SLAM基础、原理与实现（二）：激光雷达与数据获取</h1>
+		</div>
+	
+
+
+
+<div class="row post">
+	<!-- cols -->
+	
+	<div id="top_meta"></div>
+	<div class="col-md-9">
+	
+
+	<!-- content -->
+	<div class="mypage">		
+	  
+		 <div class="alert alert-success description">
+			<i class="fa fa-info-circle"></i> 主要是关于ls01c型雷达相关基础原理、距离和转角数据获取、以及GMapping SLAM中激光雷达相关类的实现。
+		 </div> <!-- alert -->
+	  		
+
+	  <h1 id="21-什么是激光雷达"><a class="markdownIt-Anchor" href="#21-什么是激光雷达"></a> 2.1 什么是激光雷达</h1>
+<p>激光雷达（LiDAR, Light Detection And Ranging）是<strong>激光探测与测距</strong>的缩写。</p>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/01.png" width="30%">
+<p>激光雷达使用了脉冲激光照射目标，可以<strong>根据照射所反射回来的脉冲激光测量雷达到达目标的距离</strong>。在反射的脉冲激光中也会带有相关信息，激光雷达可以<strong>根据返回时间和波长的差异来对目标进行3D建模</strong>。另外，激光雷达一般用于SLAM技术中，用于制作高精度地图。激光雷达所提供的点云图是<strong>直接含有深度信息</strong>的，所以使用激光雷达进行场景建图会更加地容易实现。</p>
+<a id="more"></a>
+<p>常用的激光雷达主要是下面两种类型：</p>
+<ul>
+<li>
+<p><strong>单线激光雷达（2D激光雷达）</strong>：主要用于规避障碍物，其扫描速度快、分辨率强、可靠性高。由于单线激光雷达比多线激光雷达在角频率和灵敏度反映更加快捷，所以，在测试周围障碍物的距离和精度上都更加精确。但是，单线雷达<strong>只能平面式扫描，不能测量物体高度</strong>，有一定局限性。</p>
+</li>
+<li>
+<p><strong>多线激光雷达（3D激光雷达）</strong>：多线激光雷达主要应用于汽车的雷达成像，相比单线激光雷达在维度提升和场景还原上有了质的改变，<strong>可以识别物体的高度信息</strong>。目前主要有 4线、8线、16 线、32 线和 64 线激光雷达。</p>
+</li>
+</ul>
+<h1 id="22-激光雷达的基本测距原理"><a class="markdownIt-Anchor" href="#22-激光雷达的基本测距原理"></a> 2.2 激光雷达的基本测距原理</h1>
+<p>激光雷达的测距方法一般是三角测距法和飞行时间（TOF）法。</p>
+<h2 id="221-三角测距法"><a class="markdownIt-Anchor" href="#221-三角测距法"></a> 2.2.1 三角测距法</h2>
+<p>典型的单点激光器三角测距原理结构如下图：</p>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/02.png" width="50%">
+<p>激光器Laser以一定的角 <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.05278em;">β</span></span></span></span>射出一束激光，沿激光方向距离为d的物体反射激光。反射激光由线性CCD传感器Imager（一般看作是一个长条形的摄像头）接收，被物体反射的激光经过“小孔成像”被Imager拍摄到。</p>
+<p><strong>已知</strong>：焦距<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>f</mi></mrow><annotation encoding="application/x-tex">f</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.10764em;">f</span></span></span></span>，物体离平面的垂直距离<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>q</mi></mrow><annotation encoding="application/x-tex">q</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.03588em;">q</span></span></span></span>，激光器和焦点间的距离是<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.43056em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">s</span></span></span></span>，过焦点平行于激光方向的虚线，它跟Imager的交点位置（因为 <span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.05278em;">β</span></span></span></span>已知）；</p>
+<p><strong>中间变量</strong>：物体激光反射后成像在Imager上的点位置离该处的距离<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.43056em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">x</span></span></span></span>；</p>
+<p><strong>求解</strong>：物体离激光器的距离<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.69444em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">d</span></span></span></span>；</p>
+<p>从图中很容易看出来，<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>q</mi></mrow><annotation encoding="application/x-tex">q</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.625em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.03588em;">q</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.69444em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">d</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.05278em;">β</span></span></span></span>组成的三角形跟<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.43056em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">x</span></span></span></span>,<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>f</mi></mrow><annotation encoding="application/x-tex">f</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.10764em;">f</span></span></span></span>组成的三角形是相似三角形，于是有：</p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>f</mi><mi mathvariant="normal">/</mi><mi>x</mi><mo>=</mo><mi>q</mi><mi mathvariant="normal">/</mi><mi>s</mi><mo>→</mo><mi>q</mi><mo>=</mo><mi>f</mi><mo>×</mo><mi>s</mi><mi mathvariant="normal">/</mi><mi>x</mi></mrow><annotation encoding="application/x-tex">f/x = q/s \to q = f \times s/x
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.75em;"></span><span class="strut bottom" style="height:1em;vertical-align:-0.25em;"></span><span class="base displaystyle textstyle uncramped"><span class="mord mathit" style="margin-right:0.10764em;">f</span><span class="mord mathrm">/</span><span class="mord mathit">x</span><span class="mrel">=</span><span class="mord mathit" style="margin-right:0.03588em;">q</span><span class="mord mathrm">/</span><span class="mord mathit">s</span><span class="mrel">→</span><span class="mord mathit" style="margin-right:0.03588em;">q</span><span class="mrel">=</span><span class="mord mathit" style="margin-right:0.10764em;">f</span><span class="mbin">×</span><span class="mord mathit">s</span><span class="mord mathrm">/</span><span class="mord mathit">x</span></span></span></span></span></p>
+<p><span class="katex-display"><span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>d</mi><mo>=</mo><mi>q</mi><mi mathvariant="normal">/</mi><mi>s</mi><mi>i</mi><mi>n</mi><mi>β</mi><mo>→</mo><mi>d</mi><mo>=</mo><mi>f</mi><mo>∗</mo><mi>s</mi><mi mathvariant="normal">/</mi><mo>(</mo><mi>x</mi><mo>∗</mo><mi>s</mi><mi>i</mi><mi>n</mi><mi>β</mi><mo>)</mo></mrow><annotation encoding="application/x-tex">d = q/sin\beta \to d = f*s/(x*sin\beta)
+</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.75em;"></span><span class="strut bottom" style="height:1em;vertical-align:-0.25em;"></span><span class="base displaystyle textstyle uncramped"><span class="mord mathit">d</span><span class="mrel">=</span><span class="mord mathit" style="margin-right:0.03588em;">q</span><span class="mord mathrm">/</span><span class="mord mathit">s</span><span class="mord mathit">i</span><span class="mord mathit">n</span><span class="mord mathit" style="margin-right:0.05278em;">β</span><span class="mrel">→</span><span class="mord mathit">d</span><span class="mrel">=</span><span class="mord mathit" style="margin-right:0.10764em;">f</span><span class="mbin">∗</span><span class="mord mathit">s</span><span class="mord mathrm">/</span><span class="mopen">(</span><span class="mord mathit">x</span><span class="mbin">∗</span><span class="mord mathit">s</span><span class="mord mathit">i</span><span class="mord mathit">n</span><span class="mord mathit" style="margin-right:0.05278em;">β</span><span class="mclose">)</span></span></span></span></span></p>
+<p>因为<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>f</mi></mrow><annotation encoding="application/x-tex">f</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.10764em;">f</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>s</mi></mrow><annotation encoding="application/x-tex">s</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.43056em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">s</span></span></span></span>，<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>β</mi></mrow><annotation encoding="application/x-tex">\beta</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.8888799999999999em;vertical-align:-0.19444em;"></span><span class="base textstyle uncramped"><span class="mord mathit" style="margin-right:0.05278em;">β</span></span></span></span>都是预先可以已知的量，唯一需要测量的就是<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.43056em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">x</span></span></span></span>，因此，测出<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>x</mi></mrow><annotation encoding="application/x-tex">x</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.43056em;"></span><span class="strut bottom" style="height:0.43056em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">x</span></span></span></span>就测出了<span class="katex"><span class="katex-mathml"><math><semantics><mrow><mi>d</mi></mrow><annotation encoding="application/x-tex">d</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="strut" style="height:0.69444em;"></span><span class="strut bottom" style="height:0.69444em;vertical-align:0em;"></span><span class="base textstyle uncramped"><span class="mord mathit">d</span></span></span></span>，即得到物体离激光器的距离了。</p>
+<p>在单点激光器探测的原理基础上，成为普通的激光雷达，厂商还需要考虑下面的几个问题：</p>
+<ul>
+<li>Laser和Imager的安装方式对成像范围会有影响（小孔成像原理），考虑以何种方式安装Imager成像范围最好；</li>
+<li>如何将整个雷达探测的量程均匀分布在Imager上；（Imager前增加透镜）<br>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/03.png" width="35%"></li>
+<li>如何使Laser的扫描范围变成360°；（增加旋转底座，使单点激光器旋转）<br>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/04.png" width="60%"></li>
+</ul>
+<h2 id="222-飞行时间tof法"><a class="markdownIt-Anchor" href="#222-飞行时间tof法"></a> 2.2.2 飞行时间（TOF）法</h2>
+<p>TOF测距原理相对比较简单，激光器发射一个激光脉冲，并由计时器记录下出射的时间，回返光经接收器接收，并由计时器记录下回返的时间。两个时间相减即得到了光的“飞行时间”，而光速是一定的，因此在已知速度和时间后很容易就可以计算出距离。</p>
+<p><img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/05.png" alt="在这里插入图片描述"></p>
+<p>虽然TOF测距原理简单，但实现起来却并不容易，主要难点在于：</p>
+<ul>
+<li><strong>计时问题</strong>：在TOF方案中，距离测量依赖于时间的测量。但是光速太快了，因此要获得精确的距离，对计时系统的要求也就变得很高。一个数据是，激光雷达要测量1cm的距离，对应的时间跨度约为65ps。稍微熟悉电气特性的同学应该就知道这背后对电路系统意味着什么。</li>
+<li><strong>时钟同步约束</strong>：由TOF测距原理可知，它必须要求发送设备和接收设备必须始终始终同步。</li>
+<li><strong>脉冲信号的处理</strong>：
+<ul>
+<li><strong>激光处理</strong>：三角雷达里对激光器驱动几乎没什么要求，因为测量依赖的激光回波的位置，所以只需要一个连续光出射就可以了。但是TOF 却不行，不光要脉冲激光，而且质量还不能太差，目前TOF 雷达的出射光脉宽都在几纳秒左右，上升沿更是要求越快越好，因此每家产品的激光驱动方案也是有高低之分的。</li>
+<li><strong>接收器</strong>：一般来说回波时刻鉴别其实是对上升沿的时间鉴别，因此在对回波信号处理时，必须保证信号尽量不要失真。另外，即便信号没有失真，由于回波信号不可能是一个理想的方波，因此在同一距离下对不同物体的测量也会导致前沿的变动。比如对同一位置的白纸和黑纸的测量，可能得到如下图的两个回波信号，而时间测量系统必须测出这两个前沿是同一时刻的（因为距离是同一距离），这就需要特别的处理。</li>
+</ul>
+</li>
+</ul>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/06.png" width="30%">
+<h1 id="23-激光雷达性能"><a class="markdownIt-Anchor" href="#23-激光雷达性能"></a> 2.3 激光雷达性能</h1>
+<p><strong>实际并不关心你LiDAR实现起来简单还是难</strong>。主要关心的性能有：</p>
+<ul>
+<li>
+<p><strong>测量距离</strong>：从原理上来说，TOF 雷达可以测量的距离更远。实际上，在一些要求测量距离的场合，比如无人驾驶汽车应用，几乎都是TOF 雷达。而三角雷达测不远，主要有几个方面的原因：</p>
+<ul>
+<li>原理上的限制，三角雷达测量的物体距离越远，在CCD上的位置差别就越小，以致于在超过某个距离后，CCD 几乎无法分辨。</li>
+<li>三角雷达没办法像TOF 雷达那样获得较高的信噪比。TOF 激光雷达采用脉冲激光采样，并且还能严格控制视场以减少环境光的影响。</li>
+</ul>
+</li>
+<li>
+<p><strong>采样率</strong>：又称<strong>测量频率</strong>，每秒能够完成的点云测量次数就是采样率。在转速一定的情况下，采样率决定了每一帧图像的点云数目以及点云的角分辨率。角分辨率越高，点云数量越多，则图像对周围环境的描绘就越细致。<strong>TOF雷达采样率一般高于三角法雷达</strong><br>
+例如，镭神ls01c型激光雷达（三角型雷达）的测量频率最大可达4000Hz，转速最大可达11Hz，也就是说在一秒内激光雷达转了3960°，可以发射4000个激光束，那么每个激光束夹角为1°，而这款激光雷达的角度分辨率刚好是1°。</p>
+</li>
+<li>
+<p><strong>精度</strong>：激光雷达本质上是个测距设备，因此距离的测量精度是毫无疑问的核心指标。<br>
+在这一点上，三角法在近距离下的精度很高，但是随着距离越来越远，其测量的精度会越来越差，这是因为三角法的测量和角度有关，而随着距离增加，角度差异会越来越小。所以<strong>三角雷达在标注精度时往往都是采用百分比的标注（常见的如1%）</strong>，那么在20m 的距离时最大误差就在20cm。而TOF雷达是依赖飞行时间，<strong>时间测量精度并不随着长度增加有明显变化</strong>，因此大多数TOF 雷达在几十米的测量范围内都能保持<strong>几个厘米</strong>的精度。</p>
+</li>
+<li>
+<p><strong>转速（帧率）</strong>：在机械式雷达中，图像帧率就是由电机的转速决定的。就目前市面上的二维激光雷达而言，三角雷达的最高转速通常在20Hz 以下，TOF 雷达则可以做到30Hz-50Hz 左右。<br>
+当然，这里提到的转速的区别只是对现有产品的一个客观分析。其实转速和雷达采用TOF还是三角法没有本质的联系，主流的多线TOF雷达也都是采用的上下分体的结构，毕竟同轴结构的光学设计受到许多限制。多线TOF雷达的转速一般也都在20Hz下。</p>
+<ul>
+<li>高转速（或者说高帧率）对点云成像效果是很有意义的。<strong>高帧率更利于捕捉高速运动的物体</strong>，比如高速公路上行驶的车辆。</li>
+<li>在自身建图时，运动中的雷达建图会发生畸变（举个例子，如果一个静止的雷达扫描一圈是一个圆，那么当雷达直线运动时，扫描出的图像就变成一个椭圆）。显然，<strong>高转速可以更好的减少这种畸变的影响</strong>，当然还有更好的处理方法，参考后面的<strong>运动畸变处理</strong>。</li>
+</ul>
+</li>
+</ul>
+<p>镭神ls01c型激光雷达性能参数：</p>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/07.png" width="80%">
+<h1 id="24-激光雷达数据读取"><a class="markdownIt-Anchor" href="#24-激光雷达数据读取"></a> 2.4 激光雷达数据读取</h1>
+<p>室内移动机器人一般采用基于三角测距原理的2D激光雷达，来扫描室内环境，得到二维点云数据，用于环境地图的构建。下图是采用镭神ls01c型激光雷达，实时扫描得到局部地图的2维点云数据（红色的小点）：</p>
+<p><img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/08.png" alt="在这里插入图片描述"></p>
+<p>同里程计一样，我们不太不关心激光雷达的测距原理，因为生产商一般会提供激光雷达的底层驱动，只要能够读取到激光雷达测量输出的<strong>距离</strong>和<strong>夹角</strong>，作为SLAM问题中的观测值。</p>
+<p>一般激光雷达返回给机器人系统的雷达数据有：</p>
+<table>
+<thead>
+<tr>
+<th>数据类型</th>
+<th>单位</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>距离</td>
+<td>mm</td>
+<td>激光雷达距离当前采样点之间的实际距离</td>
+</tr>
+<tr>
+<td>夹角</td>
+<td>°</td>
+<td>当前采样点相对于激光雷达基准朝向的夹角</td>
+</tr>
+<tr>
+<td>强度</td>
+<td>----</td>
+<td>采样点质量信号，与激光接收信号质量相关</td>
+</tr>
+<tr>
+<td>新数据帧标志位</td>
+<td>bool</td>
+<td>表示当前采样点是否属于新一次的扫描</td>
+</tr>
+</tbody>
+</table>
+<h2 id="241-激光雷达与ros系统的通信"><a class="markdownIt-Anchor" href="#241-激光雷达与ros系统的通信"></a> 2.4.1 激光雷达与ROS系统的通信</h2>
+<p><strong>雷达与ROS系统之间的通信应该由ROS系统先发起</strong>：雷达启动后，其核心测距模块开始正常运作后便会开始扫描。当ROS系统发送请求给雷达，雷达在接收到ROS系统的请求之后才会开始执行相关的操作。</p>
+<p><strong>雷达与ROS系统之间的通信一般采用数据报文的方式</strong>：ROS系统发送请求报文，雷达发送返回报文，两者之间采用请求/应答模式。</p>
+<ul>
+<li><strong>单请求-单应答模式</strong>：ROS系统需要获取雷达的数据信息，发送请求报文；雷达接收到请求之后做出相应的的处理，发送返回报文；<br>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/09.png" width="50%"><br>
+一次请求对应一次应答，而且请求应该是由顺序的。也就是说，ROS系统发送一次请求之后需要等待雷达应答返回相关的数据包，而不能多次发送请求。如果ROS系统违反了这个协议，除了第一次请求可以得到应答之外，其他的请求都会被雷达忽略；</li>
+<li><strong>单请求-多应答模式</strong>：雷达在收到ROS系统的请求之后会持续地返回数据，一般用于ROS系统需要获取雷达的扫描信息的场景；<br>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/10.png" width="50%"><br>
+ROS系统向雷达发送请求，希望获取雷达的扫描信息，雷达在接收到请求之后，开始扫描测距工作，并将得到的相关数据（具体都有哪些数据？）发送给ROS系统；</li>
+<li><strong>单请求-无应答模式</strong>：ROS系统发送获取扫描信息的请求之后，雷达会持续返回相关的扫描信息，这时需要一个停止操作；单请求-无应答模式一般用于ROS系统发送停止扫描或者重启核心测距模块的请求。<br>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/11.png" width="48%"><br>
+在ROS系统发送停止或重启请求之后，雷达不会返回数据，但会执行相应的操作，这时ROS系统需要等待一定的时间以便雷达能完成相关的操作。</li>
+</ul>
+<h2 id="242-ros系统中读取激光数据"><a class="markdownIt-Anchor" href="#242-ros系统中读取激光数据"></a> 2.4.2 ROS系统中读取激光数据</h2>
+<p>不管怎样，SLAM中我们最需要的还是距离和夹角这两个数据，因为这是激光雷达观测模型的输入，也是后面进行定位和建图的基础。</p>
+<p>在机器人操作系统ROS中，我们只需要由厂商提供的驱动和通信协议，<strong>建立激光雷达对应的节点，向ROS中的/scan话题发布sensor_msgs/LaserScan类型的消息（msg）即可</strong>：</p>
+<p>ROS系统中的sensor_msgs/LaserScan提供了最基础的针对一线激光雷达消息格式：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># 一线激光雷达(2D激光雷达)的一次扫描</span><br><span class="line">Header header            # timestamp是扫描中第一束激光的获取时间</span><br><span class="line">                         # 角度环绕Z轴（Z轴为激光雷达正上方），逆时钟方向增加，0度角指向X轴</span><br><span class="line">float32 angle_min        # 扫描的起始角度 [rad]</span><br><span class="line">float32 angle_max        # 扫描的结束角度 [rad]</span><br><span class="line">float32 angle_increment  # 每次测量间的角度差 [rad]</span><br><span class="line"></span><br><span class="line">float32 time_increment   # 每次测量间的时间差 [seconds] </span><br><span class="line">                         # 这个数值会用来生成点云（而不是scan_time）</span><br><span class="line">float32 scan_time        # 每次扫描的时间差 [seconds] </span><br><span class="line">                         # 这个时间差是每次激光发射的时间差，上面那个是每次接收（测量）的时间差</span><br><span class="line"></span><br><span class="line">float32 range_min        # 距离最小值 [m]</span><br><span class="line">float32 range_max        # 距离最大值 [m]</span><br><span class="line"></span><br><span class="line">float32[] ranges         # 距离数据 [m]</span><br><span class="line">float32[] intensities    # 强度数据 [单位视设备标定] </span><br><span class="line">                         #如果设备不产生强度数据，则该数据为空</span><br></pre></td></tr></table></figure>
+<p>Dashgo_d1移动机器人Gmapping SLAM示例项目的ROS节点图：</p>
+<img src="https://blogimgs-1257364873.cos.ap-chengdu.myqcloud.com/gmappingslam-basis-principle-impl/02/12.png" width="100%">
+<p>上图中节点/lsrdgo为激光雷达节点，它通过/scan话题向外发布sensor_msgs/LaserScan类型的消息，其他节点只需要订阅该话题即可获取到激光雷达数据，例如Gmapping SLAM算法的/slam_gapping节点获取来自/scan话题的激光数据，作为SLAM的输入。</p>
+<p>GMapping SLAM算法中创建了这样两个类，激光传感器类（RangeSensor）和激光传感器数据读取类（RangeReaing），为读取激光数据作准备。</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * RangeSensor，激光传感器类，继承自传感器基类</span></span><br><span class="line"><span class="comment"> * 数据成员：</span></span><br><span class="line"><span class="comment"> *      Beam，表示一束激光（又称作一个激光点）的struct结构体</span></span><br><span class="line"><span class="comment"> *      newFormat，标志位，默认为false（不知道有啥用）</span></span><br><span class="line"><span class="comment"> *      m_pose，激光传感器的位姿（相对于base_link）</span></span><br><span class="line"><span class="comment"> *      m_beams，激光数据的vector容器，里面包含 beams_num 束激光（Beam）</span></span><br><span class="line"><span class="comment"> * 函数成员：</span></span><br><span class="line"><span class="comment"> *      getPose()，获取激光传感器的位姿</span></span><br><span class="line"><span class="comment"> *      beams()，返回所有的激光数据（重载）</span></span><br><span class="line"><span class="comment"> *      updateBeamsLookup()，计算 m_beams 中每一束激光的sin值和cos值</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">RangeSensor</span>:</span> <span class="keyword">public</span> Sensor &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">	<span class="class"><span class="keyword">struct</span> <span class="title">Beam</span></span></span><br><span class="line"><span class="class">	&#123;</span></span><br><span class="line">		<span class="comment">/* 一束激光对应的数据 */</span></span><br><span class="line">		OrientedPoint pose;<span class="comment">// 相对于激光传感器中心的坐标(x,y,theta)，默认为(0,0,angle)</span></span><br><span class="line">		<span class="keyword">double</span> span;            <span class="comment">// span=0 表明是一个 0 线激光</span></span><br><span class="line">		<span class="keyword">double</span> maxRange;        <span class="comment">// 激光传感器最大测量范围</span></span><br><span class="line">		<span class="keyword">double</span> s,c;             <span class="comment">// 该束激光的sin值和cos值 </span></span><br><span class="line">	&#125;;</span><br><span class="line">	<span class="keyword">bool</span> newFormat;</span><br><span class="line">	</span><br><span class="line">	RangeSensor( <span class="built_in">std</span>::<span class="built_in">string</span> name );</span><br><span class="line">	RangeSensor( <span class="built_in">std</span>::<span class="built_in">string</span> name, <span class="keyword">unsigned</span> <span class="keyword">int</span> beams_num, <span class="keyword">double</span> res, </span><br><span class="line">				 <span class="keyword">const</span> OrientedPoint&amp; position=OrientedPoint(<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>), </span><br><span class="line">				 <span class="keyword">double</span> span=<span class="number">0</span>, <span class="keyword">double</span> maxrange=<span class="number">89.0</span> );</span><br><span class="line">	RangeSensor( <span class="built_in">std</span>::<span class="built_in">string</span> name, <span class="keyword">unsigned</span> <span class="keyword">int</span> beams_num, <span class="keyword">double</span> *angles, </span><br><span class="line">				 <span class="keyword">const</span> OrientedPoint&amp; position=OrientedPoint(<span class="number">0</span>,<span class="number">0</span>,<span class="number">0</span>), </span><br><span class="line">				 <span class="keyword">double</span> span=<span class="number">0</span>, <span class="keyword">double</span> maxrange=<span class="number">89.0</span> );</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">inline</span> OrientedPoint <span class="title">getPose</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> m_pose; &#125;</span><br><span class="line">	<span class="keyword">inline</span> <span class="keyword">const</span> <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;Beam&gt;&amp; beams() <span class="keyword">const</span> &#123; <span class="keyword">return</span> m_beams; &#125;</span><br><span class="line">	<span class="keyword">inline</span> <span class="built_in">std</span>::<span class="built_in">vector</span>&lt;Beam&gt;&amp; beams() <span class="keyword">const</span> &#123; <span class="keyword">return</span> m_beams; &#125;</span><br><span class="line">	<span class="function"><span class="keyword">void</span> <span class="title">updateBeamsLookup</span><span class="params">()</span></span>;</span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line">	OrientedPoint m_pose;</span><br><span class="line">	<span class="built_in">std</span>::<span class="built_in">vector</span>&lt;Beam&gt; m_beams;    </span><br><span class="line">&#125;;</span><br></pre></td></tr></table></figure>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * RangeReading，激光传感器数据读取类，继承自传感器数据读取基类</span></span><br><span class="line"><span class="comment"> * 读取激光传感器的 距离数据 与 角度数据</span></span><br><span class="line"><span class="comment"> * 数据成员：</span></span><br><span class="line"><span class="comment"> *      m_pose，机器人位姿（不是激光传感器的位姿）</span></span><br><span class="line"><span class="comment"> *      m_dists，激光距离数据的 vector 容器，包含每一束激光所测的距离数据</span></span><br><span class="line"><span class="comment"> *      m_beams，激光束的数量</span></span><br><span class="line"><span class="comment"> *      m_angles，激光角度数据的 vector 容器，包含每一束激光对应的角度</span></span><br><span class="line"><span class="comment"> * 函数成员：</span></span><br><span class="line"><span class="comment"> *      getPose()，读取这一帧激光数据对应的机器人位姿</span></span><br><span class="line"><span class="comment"> *      setPose()，设置这一帧激光数据对应的机器人位姿</span></span><br><span class="line"><span class="comment"> *      getSize()，返回激光束的数量</span></span><br><span class="line"><span class="comment"> *      rawView()，返回density过滤之后的激光值</span></span><br><span class="line"><span class="comment"> *      cartesianForm()，转换激光数据到笛卡尔坐标系下</span></span><br><span class="line"><span class="comment"> *      activeBeams()，指定激光密度，有多少有效的激光     </span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">RangeReading</span>:</span> SensorReading &#123;</span><br><span class="line"><span class="keyword">public</span>:</span><br><span class="line">	<span class="keyword">unsigned</span> <span class="keyword">int</span> m_beams;</span><br><span class="line">	<span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">double</span>&gt; m_dists;</span><br><span class="line">	<span class="built_in">std</span>::<span class="built_in">vector</span>&lt;<span class="keyword">double</span>&gt; m_angles;</span><br><span class="line"></span><br><span class="line">	RangeReading( <span class="keyword">const</span> RangeSensor* rs, <span class="keyword">double</span> time=<span class="number">0</span> );</span><br><span class="line">	RangeReading( <span class="keyword">unsigned</span> <span class="keyword">int</span> n_beams, <span class="keyword">const</span> <span class="keyword">double</span>* d, </span><br><span class="line">				  <span class="keyword">const</span> RangeSensor* rs, <span class="keyword">double</span> time=<span class="number">0</span> );</span><br><span class="line">	RangeReading( <span class="keyword">unsigned</span> <span class="keyword">int</span> n_beams, <span class="keyword">const</span> <span class="keyword">double</span>* d, </span><br><span class="line">				  <span class="keyword">const</span> <span class="keyword">double</span>* angles, <span class="keyword">const</span> RangeSensor* rs, </span><br><span class="line">				  <span class="keyword">double</span> time=<span class="number">0</span> );</span><br><span class="line">	<span class="keyword">virtual</span> ~RangeReading();</span><br><span class="line"></span><br><span class="line">	<span class="function"><span class="keyword">inline</span> <span class="keyword">const</span> OrientedPoint&amp; <span class="title">getPose</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> m_pose; &#125;</span><br><span class="line">	<span class="function"><span class="keyword">inline</span> <span class="keyword">void</span> <span class="title">setPose</span><span class="params">( <span class="keyword">const</span> OrientedPoint&amp; pose )</span> </span>&#123; m_pose = pose; &#125;</span><br><span class="line">	<span class="function"><span class="keyword">inline</span> <span class="keyword">const</span> <span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="title">getSize</span><span class="params">()</span> <span class="keyword">const</span> </span>&#123; <span class="keyword">return</span> m_beams; &#125;</span><br><span class="line">	<span class="function"><span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="title">rawView</span><span class="params">( <span class="keyword">double</span>* v, <span class="keyword">double</span> density=<span class="number">0.</span> )</span> <span class="keyword">const</span></span>;</span><br><span class="line">	<span class="built_in">std</span>::<span class="built_in">vector</span>&lt;Point&gt; cartesianForm( <span class="keyword">double</span> maxRange=<span class="number">1e6</span> ) <span class="keyword">const</span>;</span><br><span class="line">	<span class="function"><span class="keyword">unsigned</span> <span class="keyword">int</span> <span class="title">activeBeams</span><span class="params">( <span class="keyword">double</span> density=<span class="number">0.</span> )</span> <span class="keyword">const</span></span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">protected</span>:</span><br><span class="line">	OrientedPoint m_pose;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>更多关于GMapping SLAM源代码的内容，查看：</p>
+<blockquote>
+<p><a href="https://github.com/luoliCHq/readGMappingSLAM/tree/master/include/sensor" target="_blank" rel="noopener">https://github.com/luoliCHq/readGMappingSLAM/tree/master/include/sensor</a></p>
+</blockquote>
+<p>参考：</p>
+<blockquote>
+<p><a href="https://blog.csdn.net/SLAMTEC/article/details/82841699" target="_blank" rel="noopener">https://blog.csdn.net/SLAMTEC/article/details/82841699</a><br>
+<a href="https://www.jianshu.com/p/b12b4a4a64a3" target="_blank" rel="noopener">https://www.jianshu.com/p/b12b4a4a64a3</a><br>
+<a href="https://blog.csdn.net/datase/article/details/78447044" target="_blank" rel="noopener">https://blog.csdn.net/datase/article/details/78447044</a><br>
+<a href="https://blog.csdn.net/weixin_42229404/article/details/83825448" target="_blank" rel="noopener">https://blog.csdn.net/weixin_42229404/article/details/83825448</a><br>
+王莹. 基于相位的ToF测距方法避免了背景光影响[J]. 电子产品世界, 2016, 23(4):78-79.<br>
+薛锋. 基于激光雷达的移动机器人环境探测与定位导航研究[D]. 东南大学.<br>
+任祥华. 激光雷达室内SLAM方法[D]. 哈尔滨工程大学.<br>
+陈兴邦. 基于LiDAR_INS组合导航的室内移动机器人定位研究[D]. 哈尔滨工程大学.</p>
+</blockquote>
+	  
+	</div>
+
+	<div>
+  	<center>
+	<div class="pagination">
+
+    
+    
+    <a href="/2019/10/17/gmappingslam-basis-principle-impl-03/" type="button" class="btn btn-default"><i
+                class="fa fa-arrow-circle-o-left"></i> Prev</a>
+    
+
+    <a href="/" type="button" class="btn btn-default"><i class="fa fa-home"></i>Home</a>
+    
+    <a href="/2019/10/16/gmappingslam-basis-principle-impl-01/" type="button" class="btn btn-default ">Next<i
+                class="fa fa-arrow-circle-o-right"></i></a>
+    
+
+    
+</div>
+
+    </center>
+	</div>
+	
+	<!-- comment -->
+	
+<section id="comment">
+    <h2 class="title">Comments</h2>
+	<p><a href="https://github.com/luoliCHq/luolichq.github.io/issues">IF YOU HAVE ANY QUESTIONS, JUST CLICK THIS LINE OF TEXT.</a></p>
+    
+	
+	
+</section>
+
+
+	</div> <!-- col-md-9/col-md-12 -->
+		
+	
+	<div id="side_meta">
+		<div class="col-md-3" id="post_meta"> 
+
+	<!-- date -->
+	
+	<div class="meta-widget">
+	<i class="fa fa-clock-o"></i>
+	2019-10-17 
+	</div>
+	
+
+	<!-- categories -->
+    
+	<div class="meta-widget">
+	<a data-toggle="collapse" data-target="#categorys"><i class="fa fa-folder"></i></a>	
+    <ul id="categorys" class="tag_box list-unstyled collapse in">
+          
+  <li>
+    <li><a href="/categories/Lidar-SLAM/">Lidar SLAM<span>5</span></a></li>
+  </li>
+
+    </ul>
+	</div>
+	
+
+	<!-- tags -->
+	
+	<div class="meta-widget">
+	<a data-toggle="collapse" data-target="#tags"><i class="fa fa-tags"></i></a>		  
+    <ul id="tags" class="tag_box list-unstyled collapse in">	  
+	    
+  <li><a href="/tags/Hardware/">Hardware<span>3</span></a></li> <li><a href="/tags/Sensor/">Sensor<span>4</span></a></li> <li><a href="/tags/Lidar/">Lidar<span>3</span></a></li>
+    </ul>
+	</div>
+		
+
+	<!-- toc -->
+	<div class="meta-widget">
+	
+	   <a data-toggle="collapse" data-target="#toc"><i class="fa fa-bars"></i></a>
+	   <div id="toc" class="toc collapse in">
+		   <span class="toc-title">Contents</span>
+			<ol class="toc-article"><li class="toc-article-item toc-article-level-1"><a class="toc-article-link" href="#21-什么是激光雷达"><span class="toc-article-text"> 2.1 什么是激光雷达</span></a></li><li class="toc-article-item toc-article-level-1"><a class="toc-article-link" href="#22-激光雷达的基本测距原理"><span class="toc-article-text"> 2.2 激光雷达的基本测距原理</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#221-三角测距法"><span class="toc-article-text"> 2.2.1 三角测距法</span></a></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#222-飞行时间tof法"><span class="toc-article-text"> 2.2.2 飞行时间（TOF）法</span></a></li></ol></li><li class="toc-article-item toc-article-level-1"><a class="toc-article-link" href="#23-激光雷达性能"><span class="toc-article-text"> 2.3 激光雷达性能</span></a></li><li class="toc-article-item toc-article-level-1"><a class="toc-article-link" href="#24-激光雷达数据读取"><span class="toc-article-text"> 2.4 激光雷达数据读取</span></a><ol class="toc-article-child"><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#241-激光雷达与ros系统的通信"><span class="toc-article-text"> 2.4.1 激光雷达与ROS系统的通信</span></a></li><li class="toc-article-item toc-article-level-2"><a class="toc-article-link" href="#242-ros系统中读取激光数据"><span class="toc-article-text"> 2.4.2 ROS系统中读取激光数据</span></a></li></ol></li></ol>
+		</div>
+	
+	</div>
+	
+    <hr>
+	
+</div><!-- col-md-3 -->
+
+	</div>
+		
+
+</div><!-- row -->
+
+
+
+	</div>
+  </div>
+  <div class="container-narrow">
+  <footer> <p>Copyright 
+  &copy; 2019 Cheng Haoqi
+  
+	  <br/>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> | <a href="http://github.com/wzpan/hexo-theme-freemind/">Freemind.386</a>.    
+</p>
+ </footer>
+</div> <!-- container-narrow -->
+  
+
+
+  
+<a id="gotop" href="#">   
+  <span>⬆︎TOP</span>
+</a>
+
+<script src="/js/jquery.imagesloaded.min.js"></script>
+<script src="/js/gallery.js"></script>
+<script src="/js/bootstrap.min.js"></script>
+<script src="/js/main.js"></script>
+<script src="/js/search.js"></script> 
+
+
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.css" media="screen" type="text/css">
+<script src="/fancybox/jquery.fancybox.pack.js"></script>
+<script type="text/javascript">
+(function($){
+  $('.fancybox').fancybox();
+})(jQuery);
+</script>
+
+
+
+</body>
+   </html>
